@@ -1,0 +1,18 @@
+FROM nvcr.io/nvidia/l4t-ml:r35.2.1-py3
+WORKDIR /app
+COPY requirements.txt /app
+RUN pip3 install -r requirements.txt
+
+# copy the model into the container
+COPY small.pt /app
+RUN apt-get update && apt-get install -y \
+    ffmpeg && apt-get clean
+
+COPY run.sh server.py  /app
+ADD templates /app/templates
+ADD static /app/static
+
+ENV FLASK_APP=server
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+CMD python3 -m flask run --host 0.0.0.0
