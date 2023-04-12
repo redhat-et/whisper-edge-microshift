@@ -61,7 +61,8 @@ var Recorder = exports.Recorder = (function () {
 
             var buffer = [];
             for (var channel = 0; channel < _this.config.numChannels; channel++) {
-                buffer.push(e.inputBuffer.getChannelData(channel));
+                var channelData = e.inputBuffer.getChannelData(channel);
+                buffer.push(channelData);
             }
             _this.worker.postMessage({
                 command: 'record',
@@ -77,7 +78,13 @@ var Recorder = exports.Recorder = (function () {
             var recLength = 0,
                 recBuffers = [],
                 sampleRate = undefined,
-                numChannels = undefined;
+                numChannels = undefined; 
+            var vadCallBack = undefined;
+            var voiceRecording = false;
+            var noVoiceCount = 0;
+
+            var level = 0.0;
+
 
             self.onmessage = function (e) {
                 switch (e.data.command) {
@@ -102,17 +109,57 @@ var Recorder = exports.Recorder = (function () {
             function init(config) {
                 sampleRate = config.sampleRate;
                 numChannels = config.numChannels;
+                vadCallBack = config.vadCallBack;
                 initBuffers();
             }
 
             function record(inputBuffer) {
+                var max = 0.0;
+
                 for (var channel = 0; channel < numChannels; channel++) {
-                    recBuffers[channel].push(inputBuffer[channel]);
+                    buffer = inputBuffer[channel];
+                    for (var i = 0; i < buffer.length; i++) {
+                        var val = Math.abs(buffer[i]);
+                        if (val > max) {
+                            max = val;
+                        }
+                    }
+
                 }
-                recLength += inputBuffer[0].length;
+                if (max > 0.2) {
+                    voiceRecording = true;
+                    noVoiceCount = 0;
+                }
+                else {
+                    noVoiceCount++;
+                }
+
+                if (voiceRecording) {
+                    for (var channel = 0; channel < numChannels; channel++) {
+                        buffer = inputBuffer[channel];
+                        recBuffers[channel].push(buffer);
+                    }
+
+                    recLength += inputBuffer[0].length;
+                }
+
+                console.log(max, recLength, voiceRecording, noVoiceCount);
+                
+                if (voiceRecording && noVoiceCount>20) {
+                    exportWAV('audio/wav');
+                    initBuffers();
+                    recLength = 0;
+                    voiceRecording = false;
+                    noVoiceCount = 0;
+                }
             }
 
             function exportWAV(type) {
+                audioBlob = _exportWAV(type);
+                self.postMessage({ command: 'exportWAV', data: audioBlob });
+            }
+
+            function _exportWAV(type) {
                 var buffers = [];
                 for (var channel = 0; channel < numChannels; channel++) {
                     buffers.push(mergeBuffers(recBuffers[channel], recLength));
@@ -124,9 +171,7 @@ var Recorder = exports.Recorder = (function () {
                     interleaved = buffers[0];
                 }
                 var dataview = encodeWAV(interleaved);
-                var audioBlob = new Blob([dataview], { type: type });
-
-                self.postMessage({ command: 'exportWAV', data: audioBlob });
+                return new Blob([dataview], { type: type });
             }
 
             function getBuffer() {
@@ -228,7 +273,8 @@ var Recorder = exports.Recorder = (function () {
             command: 'init',
             config: {
                 sampleRate: this.context.sampleRate,
-                numChannels: this.config.numChannels
+                numChannels: this.config.numChannels,
+              //  vadCallBack: this.config.vadCallBack
             }
         });
 
@@ -236,6 +282,11 @@ var Recorder = exports.Recorder = (function () {
             var cb = _this.callbacks[e.data.command].pop();
             if (typeof cb == 'function') {
                 cb(e.data.data);
+            } else {
+                // nasty hack for now
+                if (e.data.command == 'exportWAV') {
+                    createDownloadLink(e.data.data);
+                }
             }
         };
     }

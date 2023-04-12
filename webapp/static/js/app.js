@@ -68,7 +68,7 @@ function startRecording() {
 			Create the Recorder object and configure to record mono sound (1 channel)
 			Recording 2 channels  will double the file size
 		*/
-		rec = new Recorder(input,{numChannels:1})
+		rec = new Recorder(input,{numChannels:1, vadCallBack:createDownloadLink});//, callback: createDownloadLink})
 
 		//start the recording process
 		rec.record()
@@ -77,6 +77,7 @@ function startRecording() {
 
 	}).catch(function(err) {
 	  	//enable the record button if getUserMedia() fails
+		console.log(err);
     	recordButton.disabled = false;
     	stopButton.disabled = true;
 	});
@@ -119,7 +120,7 @@ function createDownloadLink(blob) {
 	var au = document.createElement('audio');
 	var li = document.createElement('li');
 	var link = document.createElement('a');
-	var p_text = document.createElement('p')
+	var p_text = document.createElement('h2')
 
 	//name of .wav file to use during upload and download (without extendion)
 	var filename = new Date().toISOString();
@@ -146,17 +147,25 @@ function createDownloadLink(blob) {
 	xhr.onload=function(e) {
 		console.log(e);
 		if(this.readyState === 4) {
-			console.log("Server returned: ",e.target.responseText);
-			li.appendChild(document.createTextNode ( e.target.responseText));
+			var txt = e.target.responseText;
+			console.log("Server returned: ", txt);
+			// skip this common whisper hallucination on silence/non voice
+			//if (txt == "Thank you for watching!") {
+			//	p_text.appendChild(document.createTextNode ("no speech detected"));
+			//} else {
+				p_text.appendChild(document.createTextNode (txt));
+			//}
+			window.scrollTo(0, document.body.scrollHeight);
 		}
 	};
 
 	var fd=new FormData();
 	fd.append("audio_data",blob, filename);
+	fd.append("translate", document.getElementsByName('translate')[0].checked);
 	xhr.open("POST","/transcribe",true);
 	xhr.send(fd);
-	
-	li.appendChild(document.createTextNode (" speech recognition: "));//add a space in between
+	li.appendChild(p_text);
+	p_text.appendChild(document.createTextNode ("> "));//add a space in between
 
 
 	//add the li element to the ol
