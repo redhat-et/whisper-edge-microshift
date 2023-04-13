@@ -14,3 +14,5 @@ push:
 
 run:
 	./run.sh
+
+all: build

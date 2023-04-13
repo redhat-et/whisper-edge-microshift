@@ -149,12 +149,9 @@ function createDownloadLink(blob) {
 		if(this.readyState === 4) {
 			var txt = e.target.responseText;
 			console.log("Server returned: ", txt);
-			// skip this common whisper hallucination on silence/non voice
-			//if (txt == "Thank you for watching!") {
-			//	p_text.appendChild(document.createTextNode ("no speech detected"));
-			//} else {
-				p_text.appendChild(document.createTextNode (txt));
-			//}
+		
+			p_text.appendChild(document.createTextNode (txt));
+			
 			window.scrollTo(0, document.body.scrollHeight);
 		}
 	};

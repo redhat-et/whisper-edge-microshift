@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import whisper
+from whisper.decoding import DecodingTask
 import threading 
 
 from flask import Flask, request, flash, redirect, render_template, Response
@@ -14,7 +15,10 @@ import torch
 
 model = whisper.load_model("./small.pt", device="cuda" if torch.cuda.is_available() else "cpu")
 translate_opt = whisper.DecodingOptions(task="translate", fp16=torch.cuda.is_available())
-transcribe_opt = options = whisper.DecodingOptions(fp16=torch.cuda.is_available())
+transcribe_opt = whisper.DecodingOptions(fp16=torch.cuda.is_available())
+
+transcription_task = DecodingTask(model, transcribe_opt)
+translation_task = DecodingTask(model, translate_opt)
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
@@ -45,19 +49,23 @@ def transcribe_file():
         path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(path)
 
+        sem.acquire()
         audio = whisper.load_audio(path)
         audio = whisper.pad_or_trim(audio)
         mel = whisper.log_mel_spectrogram(audio).to(model.device)
         os.remove(path)
-        global sem
-        sem.acquire()
-        options = translate_opt if translate else transcribe_opt
-        app.logger.info("Decoding audio...")
-        result = whisper.decode(model, mel, options)
+
+        
+        if mel.ndim == 2:
+            mel = mel.unsqueeze(0)
+        
+        task = translation_task if translate else transcription_task
+        result = task.run(mel)[0]
         sem.release()
+
         text = result.text
         app.logger.info("result %s no_speech_prob: %f", result.text, result.no_speech_prob)
-        if result.no_speech_prob > 0.6:
+        if result.no_speech_prob > 0.5:
             text = "** No speech detected **"
         return text
         
