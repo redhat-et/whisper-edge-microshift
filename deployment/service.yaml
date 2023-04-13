@@ -4,6 +4,7 @@ metadata:
   labels:
     app: whisper
   name: whisper
+  namespace: whisper-edge
 spec:
   type: ClusterIP
   ports:

@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: whisper
+  namespace: whisper-edge
   labels:
     app: whisper
 spec:
