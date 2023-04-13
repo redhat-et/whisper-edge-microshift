@@ -50,6 +50,7 @@ def transcribe_file():
         file.save(path)
 
         sem.acquire()
+
         audio = whisper.load_audio(path)
         audio = whisper.pad_or_trim(audio)
         mel = whisper.log_mel_spectrogram(audio).to(model.device)
@@ -68,4 +69,11 @@ def transcribe_file():
         if result.no_speech_prob > 0.5:
             text = "** No speech detected **"
         return text
-        
+
+@app.route('/liveness')
+def liveness():
+  return "OK"
+
+@app.route('/readiness')
+def readyness():
+  return "OK"
