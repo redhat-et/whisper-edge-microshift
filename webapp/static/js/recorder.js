@@ -116,6 +116,7 @@ var Recorder = exports.Recorder = (function () {
             function record(inputBuffer) {
                 var max = 0.0;
 
+                // some archaic voice activity detector, will not work on noisy environments
                 for (var channel = 0; channel < numChannels; channel++) {
                     buffer = inputBuffer[channel];
                     for (var i = 0; i < buffer.length; i++) {
@@ -126,6 +127,7 @@ var Recorder = exports.Recorder = (function () {
                     }
 
                 }
+                // if max in the wavefor is above the 20% threshold we start recording
                 if (max > 0.2) {
                     voiceRecording = true;
                     noVoiceCount = 0;
@@ -134,18 +136,39 @@ var Recorder = exports.Recorder = (function () {
                     noVoiceCount++;
                 }
 
-                if (voiceRecording) {
-                    for (var channel = 0; channel < numChannels; channel++) {
-                        buffer = inputBuffer[channel];
-                        recBuffers[channel].push(buffer);
-                    }
+                // we always add to the buffer, because we want to keep at least
+                // a pre-trigger amount of samples before the voice activity,
+                // otherwise we can miss the beginning of the sentence
+                for (var channel = 0; channel < numChannels; channel++) {
+                    buffer = inputBuffer[channel];
+                    recBuffers[channel].push(buffer);
+                }
 
-                    recLength += inputBuffer[0].length;
+                recLength += inputBuffer[0].length;
+    
+                // this assumes that all received buffers have the same length
+                bufferLen = inputBuffer[0].length;
+
+                if (!voiceRecording) {
+                    for (var channel = 0; channel < numChannels; channel++) {
+                        currentBuffer = recBuffers[channel]
+
+                        // only keep the last sampleRate samples (1 second), the buffer is a series of sub-lists with bufferLen length
+                        length = currentBuffer.length * bufferLen;
+                        pre_trigger_samples = 0.5 * sampleRate;
+                        half_sec_length = Math.floor(pre_trigger_samples / bufferLen);
+
+                        if (length - pre_trigger_samples > 0) {
+                            recBuffers[channel] = currentBuffer.slice(currentBuffer.length - half_sec_length);
+                            recLength = half_sec_length * bufferLen;
+                            console.log("trim", currentBuffer.length , recLength);
+                        }
+                    }
                 }
 
                 console.log(max, recLength, voiceRecording, noVoiceCount);
                 
-                if (voiceRecording && noVoiceCount>20) {
+                if (voiceRecording && noVoiceCount>10) {
                     exportWAV('audio/wav');
                     initBuffers();
                     recLength = 0;
@@ -155,8 +178,11 @@ var Recorder = exports.Recorder = (function () {
             }
 
             function exportWAV(type) {
-                audioBlob = _exportWAV(type);
-                self.postMessage({ command: 'exportWAV', data: audioBlob });
+                // at least one second, otherwise ignore it
+                if (recLength > sampleRate) {
+                    audioBlob = _exportWAV(type);
+                    self.postMessage({ command: 'exportWAV', data: audioBlob });
+                }
             }
 
             function _exportWAV(type) {

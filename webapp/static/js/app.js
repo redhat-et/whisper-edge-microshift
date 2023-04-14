@@ -119,7 +119,6 @@ function createAudioEntry(blob) {
 	var url = URL.createObjectURL(blob);
 	var au = document.createElement('audio');
 	var li = document.createElement('li');
-	var link = document.createElement('a');
 	var p_text = document.createElement('h2')
 
 	//name of .wav file to use during upload and download (without extendion)
@@ -129,19 +128,8 @@ function createAudioEntry(blob) {
 	au.controls = true;
 	au.src = url;
 
-	//save to disk link
-	link.href = url;
-	link.download = filename + ".wav"; //download forces the browser to donwload the file using the  filename
-	link.innerHTML = "(download)";
-
 	//add the new audio element to li
 	li.appendChild(au);
-	
-	//add the filename to the li
-	//li.appendChild(document.createTextNode(filename + ".wav "))
-
-	//add the save to disk link to li
-	//li.appendChild(link);
 
 	var xhr=new XMLHttpRequest();
 	xhr.onload=function(e) {

@@ -56,7 +56,6 @@ def transcribe_file():
         mel = whisper.log_mel_spectrogram(audio).to(model.device)
         os.remove(path)
 
-        
         if mel.ndim == 2:
             mel = mel.unsqueeze(0)
         
