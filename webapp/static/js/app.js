@@ -68,7 +68,7 @@ function startRecording() {
 			Create the Recorder object and configure to record mono sound (1 channel)
 			Recording 2 channels  will double the file size
 		*/
-		rec = new Recorder(input,{numChannels:1, vadCallBack:createDownloadLink});//, callback: createDownloadLink})
+		rec = new Recorder(input,{numChannels:1, vadCallBack:createAudioEntry});//, callback: createDownloadLink})
 
 		//start the recording process
 		rec.record()
@@ -111,10 +111,10 @@ function stopRecording() {
 	gumStream.getAudioTracks()[0].stop();
 
 	//create the wav blob and pass it on to createDownloadLink
-	rec.exportWAV(createDownloadLink);
+	rec.exportWAV(createAudioEntry);
 }
 
-function createDownloadLink(blob) {
+function createAudioEntry(blob) {
 	
 	var url = URL.createObjectURL(blob);
 	var au = document.createElement('audio');
@@ -147,12 +147,21 @@ function createDownloadLink(blob) {
 	xhr.onload=function(e) {
 		console.log(e);
 		if(this.readyState === 4) {
-			var txt = e.target.responseText;
-			console.log("Server returned: ", txt);
-		
-			p_text.appendChild(document.createTextNode (txt));
+			if (this.status === 200) {
+				var txt = e.target.responseText;
+				console.log("Server returned: ", txt);
 			
-			window.scrollTo(0, document.body.scrollHeight);
+				p_text.appendChild(document.createTextNode (txt));
+				window.scrollTo(0, document.body.scrollHeight);
+
+				if (txt == "** No speech detected **") {
+					setTimeout(function(li_obj) {li_obj.remove()}, "4000", li);
+				}
+			}
+			else
+			{
+				p_text.appendChild(document.createTextNode ("Server returned error code " + this.status));
+			}
 		}
 	};
 

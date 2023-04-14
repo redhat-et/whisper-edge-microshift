@@ -285,7 +285,7 @@ var Recorder = exports.Recorder = (function () {
             } else {
                 // nasty hack for now
                 if (e.data.command == 'exportWAV') {
-                    createDownloadLink(e.data.data);
+                    createAudioEntry(e.data.data);
                 }
             }
         };
